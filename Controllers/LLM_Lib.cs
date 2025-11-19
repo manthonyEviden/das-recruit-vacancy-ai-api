@@ -3,22 +3,24 @@ using Azure.AI.OpenAI;
 using OpenAI.Chat;
 using Microsoft.AspNetCore.Mvc;
 using TestWebAPI.HelperObjects;
+using TestWebAPI.LLMWrapper;
+using TestWebAPI.LLMExecutable;
 using System.Text.Json;
 
 namespace TestWebAPI.HelperObjects
 {
-    class AICheckOutput
+    public class AICheckOutput
     { // define a simple bool and key pair struct so you can list the tests in order.
 
         public AICheckOutput(bool checkval = false,string llmdebug="", string checkname = "")
         {
-            m_CheckName = checkname;
-            m_CheckValue = checkval;
-            m_LLMDebugString = llmdebug;
+            Name = checkname;
+            Value = checkval;
+            LLM_output = llmdebug;
         }
-        public bool m_CheckValue { get; set; } = false;
-        public string m_CheckName { get; set; } = "";
-        public string m_LLMDebugString { get; set; } = "";
+        public bool Value { get; set; } = false;
+        public string Name { get; set; } = "";
+        public string LLM_output { get; set; } = "";
     }
 
     class SpellingChecks
@@ -31,9 +33,9 @@ namespace TestWebAPI.HelperObjects
             AICheckOutput retobj = new(false,"-", "SpellingCheck_AllFields");
             foreach (AICheckOutput spchk in Checks)
             {
-                if (spchk.m_CheckValue)
+                if (spchk.Value)
                 {
-                    retobj.m_CheckValue = true;
+                    retobj.Value = true;
                 }
             }
             return retobj;
@@ -44,26 +46,159 @@ namespace TestWebAPI.HelperObjects
     class AICheckReturnResultObject
     {
         public string VacancyID { get; set; } = "";
-        public List<AICheckOutput> shortlist_checks { get; set; } = [];
-        public List<AICheckOutput> fulllist_checks { get; set; } = [];               
+        public List<AICheckOutput> AICheckOutput { get; set; } = [];
+        public List<AICheckOutput> DebugAICheckOutput { get; set; } = [];
+        public TrafficLight TrafficLightScore { get; set; } = new(-1);
+        public bool RecommendReview { get; set; } = false;
     }
 
     public class InputObject
     {
         public string? VacancyId { get; set; } = "";
-        public string? VacancySnapshot_Title { get; set; } = "";
-        public string? VacancySnapshot_ShortDescription { get; set; } = "";
-        public string? VacancySnapshot_Description { get; set; } = "";
-        public string? VacancySnapshot_EmployerDescription { get; set; } = "";
-        public string? VacancySnapshot_Skills { get; set; } = "";
-        public string? VacancySnapshot_Qualifications { get; set; } = "";
-        public string? VacancySnapshot_ThingsToConsider { get; set; } = "";
-        public string? VacancySnapshot_TrainingDescription { get;set; } = "";
-        public string? VacancySnapshot_AdditionalTrainingDescription { get; set; } = "";
-        public string? Vacancy_Full { get; set; } = "";
-        public string? Vacancy_NoSkills { get; set; } = "";
+        public string? Title { get; set; } = "";
+        public string? Short_description { get; set; } = "";
+        public string? Description { get; set; } = "";
+        public string? Employer_description { get; set; } = "";
+        public string? Skills { get; set; } = "";
+        public string? Qualifications { get; set; } = "";
+        public string? Things_to_consider { get; set; } = "";
+        public string? Training_description { get;set; } = "";
+        public string? Additional_training_description { get; set; } = "";
+
+        public string? Training_programme_title { get; set; } = "";
+        public string? Training_programme_level { get; set; } = "";
+
+
+        //these classes won't be defined/filled by the JSON at the start, we add this later
+        public string? Vacancy_full { get; set; } = "";
+        public void Create_VacancyText()
+        {
+            Vacancy_full = string.Format("""
+                Title: {0}
+
+                Short description: {1}
+
+                Full description: {2}
+
+                Employer description: {3}
+
+                Training programme title: {4}
+
+                Training programme level (as set by user) {5}
+
+                Training description: {6}
+
+                Additional training description: {7}
+
+                Skills: {8}
+
+                Qualifications: {9}
+
+                Things to consider: {10}
+                """, [Title
+                ,Short_description
+                ,Description
+                ,Employer_description
+                ,Training_programme_title
+                ,Training_programme_level
+                ,Training_description
+                ,Additional_training_description
+                ,Skills
+                ,Qualifications
+                ,Things_to_consider
+                ]);
+        }
+        
 
     }
+    public class TrafficLight {
+        public TrafficLight(int rating) {
+            traffic_light_rating_system_enum = rating;
+            if (rating <= 0) {
+                traffic_light_rating_system_description = "Not Defined - ";
+            }
+            else
+            {
+                if (rating == 1)
+                {
+                    traffic_light_rating_system_description = "Green";
+                }
+                else if (rating == 2)
+                {
+                    traffic_light_rating_system_description = "Amber";
+                }
+                else if (rating == 3) 
+                {
+                    traffic_light_rating_system_description = "Red";
+                }
+                else
+                {
+                    traffic_light_rating_system_description = "Not Defined +";
+                }
+            }
+        }
+        public int traffic_light_rating_system_enum { get; set; } = 0;
+        public string traffic_light_rating_system_description { get; set; } = "Green";        
+    
+    }
+    public class PrioritisationSystem {
+        
+        public TrafficLight TrafficLightAssignment(List<AICheckOutput> Checklist) { 
+            foreach (AICheckOutput check in Checklist){ 
+               if(check.Name.Contains("Discrimination")){
+                    if (check.Value == true) {
+                        TrafficLight traf = new(3);
+                        return traf;
+                    }                    
+                }
+                if (check.Name.Contains("TextInconsistencyCheck")) {
+                    if (check.Value == true) {
+                        TrafficLight traf1 = new(3);
+                        return traf1;
+                    }
+                }
+                if (check.Name.Contains("Spelling")) {
+                    if (check.Value == true) {
+                        TrafficLight traf2 = new(2);
+                        return traf2;
+                    }
+                }
+            }
+            // if it does not flag at any point, then we're OK to mark as green
+            TrafficLight traf3 = new(1);
+            return traf3;
+
+        }
+    
+        
+        
+    }
+    public class ReviewAllocator {
+        private double Prob_Amber=0.5F;
+        private double Prob_Green = 0.01F;
+        private Random rnd = new Random();
+        public bool Allocator(TrafficLight traf) {
+            
+            if ((traf.traffic_light_rating_system_enum <= 0) | (traf.traffic_light_rating_system_enum >3)) {
+                return true; // always review - should never happen
+            }
+            
+            double rand =  rnd.NextDouble();
+            if ((traf.traffic_light_rating_system_enum == 3)) {
+                return true;
+            }
+            else if ((traf.traffic_light_rating_system_enum == 2))
+            {
+                return rand <= Prob_Amber;
+
+            }
+            else {
+                return rand <= Prob_Green;
+            }
+        }
+    
+    }
+
 }
 
 
@@ -96,14 +231,16 @@ namespace TestWebAPI.LLMWrapper
         {
             string js = new(File.ReadAllText(inputpath));
             //Console.WriteLine(js);
+            ArgumentNullException.ThrowIfNull(js);
+
             JSON_PROMPT jsondict = JsonSerializer.Deserialize<JSON_PROMPT>(js);
             //Console.WriteLine(jsondict);
 
             //call an empty dictionary constructor
             Dictionary<string, string> outdict = new Dictionary<string, string>();
-            outdict["SYSTEM_PROMPT"] = jsondict.SYSTEM_PROMPT;
-            outdict["USER_HEADER"] = jsondict.USER_HEADER;
-            outdict["USER_INSTRUCTION"] = jsondict.USER_INSTRUCTIONS;
+            outdict["SYSTEM_PROMPT"] = jsondict.SYSTEM_PROMPT ?? "-";
+            outdict["USER_HEADER"] = jsondict.USER_HEADER ?? "-";
+            outdict["USER_INSTRUCTION"] = jsondict.USER_INSTRUCTIONS ?? "-";
             return outdict;
         }
 
@@ -129,7 +266,7 @@ namespace TestWebAPI.LLMWrapper
             bool containsno = lowertext.Contains("no");
             if (invert_logic)
                 if (containsyes)
-                { return true; } // test passes in this instance
+                { return false; } // test passes in this instance
                 else
                 {
                     if (containsno)
@@ -169,16 +306,9 @@ namespace TestWebAPI.LLMWrapper
             // we need a secret to store these properly, but this is a second order problem.
             var configuration = new ConfigurationBuilder().AddJsonFile("C:\\Users\\manthony2\\OneDrive - Department for Education\\Documents\\testdotnetproject\\local.settings.json", optional: false, reloadOnChange: true)
             .Build();
-            string conn_key = configuration.GetSection("Values").GetValue<string>("VACANCYQA_LLM_KEY");
-            string conn_URL = configuration.GetSection("Values").GetValue<string>("VACANCYQA_LLM_ENDPOINT_SHORT");
+            string conn_key = configuration.GetSection("Values").GetValue<string>("VACANCYQA_LLM_KEY")?? "NO KEY DEFINED";
+            string conn_URL = configuration.GetSection("Values").GetValue<string>("VACANCYQA_LLM_ENDPOINT_SHORT")?? "NO URL DEFINED";
 
-            // check(s) to ensure we have the right key(s) set
-            //Console.WriteLine("EXECUTING LLM CALL");
-            //Console.WriteLine(configuration);
-            //Console.WriteLine("CONNECTION_KEY");
-            //Console.WriteLine(conn_key);
-            //Console.WriteLine("Connection URL");
-            //Console.WriteLine(conn_URL);
             // full URL: "https://api.education.gov.uk/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
             Uri LLMendpoint = new Uri(conn_URL);
             AzureKeyCredential azureKeyCredential = new AzureKeyCredential(new(conn_key));
@@ -222,11 +352,12 @@ namespace TestWebAPI.LLMExecutable
     class LLMExec
     {
         public LLMExec() { } // class constructor - doesn't do anything
-        public string ExecLLM(string inputvac) // simple LLM output returns a battery of tests
+        public string ExecLLM(InputObject Vacancy_input) // simple LLM output returns a battery of tests
         {
-            //string dummyvac = new string("Apprenticeship vacacny in Nursing requiring staff aged 18+");
-            string dummyvac = new string(inputvac); // copy constructor
-
+            //apply method to get the vacancy from the spec
+            Vacancy_input.Create_VacancyText();
+          
+            /*
             //temp object for vacancy
             Dictionary<string, string> Vacancy = new Dictionary<string, string>();
 
@@ -248,9 +379,9 @@ namespace TestWebAPI.LLMExecutable
             Console.WriteLine(json_serialized_input);
 
             InputObject Vacancy_input = JsonSerializer.Deserialize<InputObject>(json_serialized_input);
-
+            */
             Console.WriteLine(Vacancy_input.ToString());
-
+            
 
             Console.WriteLine("Hello, World!");
             //call class constructor for the VacancyQA class - call it without a logger method being passed in
@@ -259,21 +390,21 @@ namespace TestWebAPI.LLMExecutable
             Dictionary<string, string> llmprompt_discrim = qa.GetPrompts("C:\\Users\\manthony2\\OneDrive - Department for Education\\Documents\\GitHub\\AIVacancyQualityAssurance\\data\\PromptTemplate_V0_D1.json");
             Dictionary<string, string> llmprompt_missingcontent = qa.GetPrompts("C:\\Users\\manthony2\\OneDrive - Department for Education\\Documents\\GitHub\\AIVacancyQualityAssurance\\data\\PromptTemplate_TextConsistency.json");
             Dictionary<string, string> llmprompt_spellingcheck = qa.GetPrompts("C:\\Users\\manthony2\\OneDrive - Department for Education\\Documents\\GitHub\\AIVacancyQualityAssurance\\data\\PromptTemplate_SpellingAndGrammar.json");
-
+            
 
             Console.WriteLine("Discrimination check");
             string llmoutputcheck_discrimination = qa.CallLLM(
                 llmprompt_discrim["SYSTEM_PROMPT"],
                 llmprompt_discrim["USER_HEADER"],
                 llmprompt_discrim["USER_INSTRUCTION"],
-                Vacancy_input.Vacancy_Full
+                Vacancy_input.Vacancy_full??" "
                 );
             Console.WriteLine("Text Inconsistency/ Missing content check");
             string llmoutputcheck_missingcontent = qa.CallLLM(
                 llmprompt_missingcontent["SYSTEM_PROMPT"],
                 llmprompt_missingcontent["USER_HEADER"],
                 llmprompt_missingcontent["USER_INSTRUCTION"],
-                Vacancy_input.Vacancy_Full
+                Vacancy_input.Vacancy_full??""
             );
 
             bool status_code_discrim = qa.FlagifyLLMResponse(llmoutputcheck_discrimination, false, false);
@@ -304,14 +435,14 @@ namespace TestWebAPI.LLMExecutable
             spellingChecks.Checks = new List<AICheckOutput>();
 
             Dictionary<string, string> spagcheckdict=new Dictionary<string, string>();
-            spagcheckdict.Add("Description", Vacancy_input.VacancySnapshot_Description);
-            spagcheckdict.Add("ShortDescription", Vacancy_input.VacancySnapshot_ShortDescription);
-            spagcheckdict.Add("Qualifications", Vacancy_input.VacancySnapshot_Qualifications);
-            spagcheckdict.Add("Skills", Vacancy_input.VacancySnapshot_Skills);
-            spagcheckdict.Add("Title",Vacancy_input.VacancySnapshot_Title);
-            spagcheckdict.Add("EmployerDescription", Vacancy_input.VacancySnapshot_EmployerDescription);
-            spagcheckdict.Add("TrainingDesiption", Vacancy_input.VacancySnapshot_TrainingDescription);
-            spagcheckdict.Add("AdditionalTrainingDescription", Vacancy_input.VacancySnapshot_AdditionalTrainingDescription);
+            spagcheckdict.Add("Description", Vacancy_input.Description??"=");
+            spagcheckdict.Add("ShortDescription", Vacancy_input.Short_description??"");
+            spagcheckdict.Add("Qualifications", Vacancy_input.Qualifications??"-");
+            spagcheckdict.Add("Skills", Vacancy_input.Skills??"-");
+            spagcheckdict.Add("Title",Vacancy_input.Title??"-");
+            spagcheckdict.Add("EmployerDescription", Vacancy_input.Employer_description??"-");
+            spagcheckdict.Add("TrainingDesiption", Vacancy_input.Training_description??"-");
+            spagcheckdict.Add("AdditionalTrainingDescription", Vacancy_input.Additional_training_description??"-");
 
 
             List<string> listofkeys = new List<string>(spagcheckdict.Keys);
@@ -339,7 +470,7 @@ namespace TestWebAPI.LLMExecutable
                     spellingChecks.Checks.Add(spag_check);                
             }
 
-            bool status_code_spellinggramar = (spellingChecks.EvaluateAllSpellingChecks()).m_CheckValue;
+            bool status_code_spellinggramar = (spellingChecks.EvaluateAllSpellingChecks()).Value;
             aichecks_shortlist.Add(spellingChecks.EvaluateAllSpellingChecks());
             List<AICheckOutput> aiChecks_debug = aichecks_shortlist.Concat(spellingChecks.Checks).ToList();
 
@@ -348,12 +479,23 @@ namespace TestWebAPI.LLMExecutable
             Console.WriteLine(retline);
 
 
+            // initialize the traffic light system & Allocation system
+            PrioritisationSystem priosystem = new();
+            ReviewAllocator alloc = new();
 
+            TrafficLight traf= priosystem.TrafficLightAssignment(aichecks_shortlist);
 
-            AICheckReturnResultObject ReturnObject = new AICheckReturnResultObject{
-                fulllist_checks=aiChecks_debug,
-                shortlist_checks=aichecks_shortlist,
-                VacancyID = Vacancy["VacancyId"]              
+            bool alloc_review = alloc.Allocator(traf);
+
+            AICheckReturnResultObject ReturnObject = new AICheckReturnResultObject
+            {
+                DebugAICheckOutput = aiChecks_debug,
+                AICheckOutput = aichecks_shortlist,
+                VacancyID = Vacancy_input.VacancyId ?? "-"
+                ,
+                TrafficLightScore = traf
+                ,
+                RecommendReview = alloc_review
             };
 
             Console.WriteLine(ReturnObject);

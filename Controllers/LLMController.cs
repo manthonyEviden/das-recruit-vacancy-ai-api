@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-using TestWebAPI.LLMWrapper;
-using TestWebAPI.LLMExecutable;
+
 using TestWebAPI.HelperObjects;
+using TestWebAPI.LLMExecutable;
 namespace TestWebAPI.Controllers
 {    
     [ApiController]
@@ -14,9 +14,9 @@ namespace TestWebAPI.Controllers
         {
             
             Console.WriteLine(inputvacancy);
-            Console.WriteLine("Title: " + inputvacancy.VacancySnapshot_Title);
+            Console.WriteLine("Title: " + inputvacancy.Title);
             LLMExec llmcode = new(); // call class constructor to llmexec
-            string llmoutput=llmcode.ExecLLM("Apprenticeship vacacny in Nursing requiring staff aged 18+");
+            string llmoutput=llmcode.ExecLLM(inputvacancy);
             return Ok(llmoutput);
         }
 
